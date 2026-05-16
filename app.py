@@ -12,9 +12,36 @@ DATA_PATH = 'data/fake_news_dataset.csv'
 ARCHIVE_DIR = 'archive'
 
 
+def train_model_if_missing():
+    """Auto-train model if artifacts are missing."""
+    if not os.path.exists(VECTORIZER_PATH) or not os.path.exists(MODEL_PATH):
+        st.info('🔄 Training model for the first time... This may take a minute.')
+        try:
+            import sys
+            from io import StringIO
+            from train_model import train
+            
+            # Suppress print statements during training
+            old_stdout = sys.stdout
+            sys.stdout = StringIO()
+            try:
+                train(DATA_PATH, MODEL_DIR, ARCHIVE_DIR)
+            finally:
+                sys.stdout = old_stdout
+            
+            st.success('✅ Model trained successfully!')
+        except Exception as e:
+            st.error(f'❌ Failed to train model: {str(e)}')
+            return False
+    return True
+
+
 @st.cache_resource
 def load_artifacts():
     ensure_nltk_resources()
+    if not train_model_if_missing():
+        return None, None
+    
     if not os.path.exists(VECTORIZER_PATH) or not os.path.exists(MODEL_PATH):
         return None, None
     with open(VECTORIZER_PATH, 'rb') as f:
@@ -114,7 +141,7 @@ def main():
 
     vectorizer, model = load_artifacts()
     if vectorizer is None or model is None:
-        st.error('Model artifacts not found. Run `python train_model.py` first to train and save the model.')
+        st.error('❌ Could not load model. Please check that the dataset files are available and retry.')
         return
 
     counts, samples = load_dataset_summary()
