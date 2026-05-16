@@ -2,6 +2,7 @@ import io
 import os
 import pickle
 import streamlit as st
+from pathlib import Path
 from preprocess import clean_text, ensure_nltk_resources
 from image_utils import analyze_image
 
@@ -12,9 +13,31 @@ DATA_PATH = 'data/fake_news_dataset.csv'
 ARCHIVE_DIR = 'archive'
 
 
+def verify_data_files_exist():
+    """Check if data files are available."""
+    data_file = Path(DATA_PATH)
+    if data_file.exists():
+        return True
+    
+    # Try alternate paths in case working directory is different
+    alt_paths = [
+        Path('/app/data/fake_news_dataset.csv'),
+        Path('DS Project/data/fake_news_dataset.csv'),
+    ]
+    for path in alt_paths:
+        if path.exists():
+            return True
+    
+    return False
+
+
 def train_model_if_missing():
     """Auto-train model if artifacts are missing."""
     if not os.path.exists(VECTORIZER_PATH) or not os.path.exists(MODEL_PATH):
+        if not verify_data_files_exist():
+            st.error('❌ Dataset files not found. Please try refreshing the page or contact support.')
+            return False
+        
         st.info('🔄 Training model for the first time... This may take a minute.')
         try:
             import sys
